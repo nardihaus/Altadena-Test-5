@@ -23,12 +23,7 @@
     }).addTo(map);
 
     // GeoJSON file parts
-    const parcelFiles = [
-  'altadena_parcels_part_1.geojson',
-  'altadena_parcels_part_2.geojson',
-  'altadena_parcels_part_3.geojson',
-  'altadena_parcels_part_4.geojson'
-];
+    const parcelFiles = ['parcels_part_1.geojson', 'parcels_part_2.geojson', 'parcels_part_3.geojson'];
 
     // Google Form base link and field IDs
     const formBase = 'https://docs.google.com/forms/d/e/1FAIpQLSeXInd6e0-MX-u9EGnlbZ53Z_SQGLO_kIZxjc-5pR5ptbKX-g/viewform?usp=pp_url';
@@ -37,7 +32,7 @@
         return formBase +
             '&entry.1929044199=' + encodeURIComponent(p.architect || '') +
             '&entry.1378459837=' + encodeURIComponent(p.contractor || '') +
-            '&entry.1693961180=' + encodeURIComponent(p.address || '') +
+            '&entry.1693961180=' + encodeURIComponent(p.SitusFullAddress || '') +
             '&entry.1119155325=' + encodeURIComponent(p.parcel_id || '');
     }
 
