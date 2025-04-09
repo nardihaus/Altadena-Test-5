@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -13,11 +12,11 @@
 </head>
 <body>
 
+<!-- Address Search UI -->
 <div style="position: absolute; top: 10px; left: 10px; z-index: 999; background: white; padding: 10px; border-radius: 4px;">
   <input type="text" id="addressInput" placeholder="Enter address" style="width: 200px;">
   <button onclick="searchAddress()">Search</button>
 </div>
-
 
 <div id="map"></div>
 
@@ -30,11 +29,11 @@
 
     // GeoJSON file parts
     const parcelFiles = [
-  'altadena_parcels_part_1.geojson',
-  'altadena_parcels_part_2.geojson',
-  'altadena_parcels_part_3.geojson',
-  'altadena_parcels_part_4.geojson'
-];
+      'altadena_parcels_part_1.geojson',
+      'altadena_parcels_part_2.geojson',
+      'altadena_parcels_part_3.geojson',
+      'altadena_parcels_part_4.geojson'
+    ];
 
     // Google Form base link and field IDs
     const formBase = 'https://docs.google.com/forms/d/e/1FAIpQLSeXInd6e0-MX-u9EGnlbZ53Z_SQGLO_kIZxjc-5pR5ptbKX-g/viewform?usp=pp_url';
@@ -73,38 +72,36 @@
                 }).addTo(map);
             });
     });
-</script>
 
+    // Nominatim-based Address Search
+    function searchAddress() {
+      const address = document.getElementById("addressInput").value;
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
 
-<script>
-  function searchAddress() {
-    const address = document.getElementById("addressInput").value;
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
-
-    fetch(url, {
-      headers: {
-        'User-Agent': 'Altadena-Fire-Recovery-App/1.0 (your@email.com)'
-      }
-    })
-      .then(response => response.json())
-      .then(data => {
-        if (data.length > 0) {
-          const lat = parseFloat(data[0].lat);
-          const lon = parseFloat(data[0].lon);
-
-          map.setView([lat, lon], 17);
-
-          L.marker([lat, lon]).addTo(map)
-            .bindPopup("Searched Location").openPopup();
-        } else {
-          alert("Address not found.");
+      fetch(url, {
+        headers: {
+          'User-Agent': 'Altadena-Fire-Recovery-App/1.0 (your@email.com)'
         }
       })
-      .catch(err => {
-        console.error("Geocoding error:", err);
-        alert("An error occurred during the search.");
-      });
-  }
+        .then(response => response.json())
+        .then(data => {
+          if (data.length > 0) {
+            const lat = parseFloat(data[0].lat);
+            const lon = parseFloat(data[0].lon);
+
+            map.setView([lat, lon], 17);
+
+            L.marker([lat, lon]).addTo(map)
+              .bindPopup("Searched Location").openPopup();
+          } else {
+            alert("Address not found.");
+          }
+        })
+        .catch(err => {
+          console.error("Geocoding error:", err);
+          alert("An error occurred during the search.");
+        });
+    }
 </script>
 
 </body>
