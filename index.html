@@ -12,8 +12,8 @@
 </head>
 <body>
 
-<!-- Search UI with Autocomplete -->
-<div style="position: absolute; top: 10px; left: 10px; z-index: 999; background: white; padding: 10px; border-radius: 4px;">
+<!-- Search UI in upper right -->
+<div style="position: absolute; top: 10px; right: 10px; z-index: 999; background: white; padding: 10px; border-radius: 4px;">
   <input type="text" id="addressInput" placeholder="Enter address" style="width: 200px;" oninput="autocompleteAddress()" autocomplete="off">
   <ul id="suggestions" style="list-style:none; margin:0; padding:0; background:white; border:1px solid #ccc; max-height:150px; overflow-y:auto; position:absolute; z-index:999; width:200px;"></ul>
 </div>
@@ -21,7 +21,7 @@
 <div id="map"></div>
 
 <script>
-    const map = L.map('map').setView([34.172, -118.078], 16); // Centered on Pasadena
+    const map = L.map('map').setView([34.1897, -118.1312], 16); // Centered on Altadena
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
@@ -73,7 +73,7 @@
             });
     });
 
-    // Autocomplete & search via Photon
+    // Autocomplete & search via Photon with location bias (Altadena)
     function autocompleteAddress() {
       const query = document.getElementById("addressInput").value;
       const suggestionsBox = document.getElementById("suggestions");
@@ -83,7 +83,7 @@
         return;
       }
 
-      fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`)
+      fetch(`https://corsproxy.io/?https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&lat=34.1897&lon=-118.1312&limit=5`)
         .then(res => res.json())
         .then(data => {
           suggestionsBox.innerHTML = '';
