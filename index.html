@@ -12,10 +12,10 @@
 </head>
 <body>
 
-<!-- Address Search UI -->
+<!-- Search UI with Autocomplete -->
 <div style="position: absolute; top: 10px; left: 10px; z-index: 999; background: white; padding: 10px; border-radius: 4px;">
-  <input type="text" id="addressInput" placeholder="Enter address" style="width: 200px;">
-  <button onclick="searchAddress()">Search</button>
+  <input type="text" id="addressInput" placeholder="Enter address" style="width: 200px;" oninput="autocompleteAddress()" autocomplete="off">
+  <ul id="suggestions" style="list-style:none; margin:0; padding:0; background:white; border:1px solid #ccc; max-height:150px; overflow-y:auto; position:absolute; z-index:999; width:200px;"></ul>
 </div>
 
 <div id="map"></div>
@@ -29,10 +29,10 @@
 
     // GeoJSON file parts
     const parcelFiles = [
-      'altadena_parcels_part_1.geojson',
-      'altadena_parcels_part_2.geojson',
-      'altadena_parcels_part_3.geojson',
-      'altadena_parcels_part_4.geojson'
+        'altadena_parcels_part_1.geojson',
+        'altadena_parcels_part_2.geojson',
+        'altadena_parcels_part_3.geojson',
+        'altadena_parcels_part_4.geojson'
     ];
 
     // Google Form base link and field IDs
@@ -73,34 +73,39 @@
             });
     });
 
-    // Nominatim-based Address Search
-    function searchAddress() {
-      const address = document.getElementById("addressInput").value;
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
+    // Autocomplete & search via Photon
+    function autocompleteAddress() {
+      const query = document.getElementById("addressInput").value;
+      const suggestionsBox = document.getElementById("suggestions");
 
-      fetch(url, {
-        headers: {
-          'User-Agent': 'Altadena-Fire-Recovery-App/1.0 (your@email.com)'
-        }
-      })
-        .then(response => response.json())
+      if (query.length < 3) {
+        suggestionsBox.innerHTML = '';
+        return;
+      }
+
+      fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`)
+        .then(res => res.json())
         .then(data => {
-          if (data.length > 0) {
-            const lat = parseFloat(data[0].lat);
-            const lon = parseFloat(data[0].lon);
-
-            map.setView([lat, lon], 17);
-
-            L.marker([lat, lon]).addTo(map)
-              .bindPopup("Searched Location").openPopup();
-          } else {
-            alert("Address not found.");
-          }
-        })
-        .catch(err => {
-          console.error("Geocoding error:", err);
-          alert("An error occurred during the search.");
+          suggestionsBox.innerHTML = '';
+          data.features.forEach(feature => {
+            const suggestion = document.createElement('li');
+            suggestion.textContent = feature.properties.label;
+            suggestion.style.padding = '5px';
+            suggestion.style.cursor = 'pointer';
+            suggestion.onclick = () => {
+              document.getElementById("addressInput").value = feature.properties.label;
+              suggestionsBox.innerHTML = '';
+              flyToLocation(feature.geometry.coordinates[1], feature.geometry.coordinates[0]);
+            };
+            suggestionsBox.appendChild(suggestion);
+          });
         });
+    }
+
+    function flyToLocation(lat, lon) {
+      map.setView([lat, lon], 17);
+      L.marker([lat, lon]).addTo(map)
+        .bindPopup("Selected Location").openPopup();
     }
 </script>
 
