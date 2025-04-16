@@ -215,7 +215,7 @@
         const matches = allParcels
           .map(f => f.properties.SitusFullAddress)
           .filter(addr => normalizeAddress(addr).includes(value))
-          .slice(0, 10); // limit suggestions
+          .slice(0, 10);
 
         matches.forEach(addr => {
           const item = document.createElement("div");
@@ -230,7 +230,6 @@
         });
       });
 
-      // Close autocomplete on outside click
       document.addEventListener("click", function(e) {
         if (e.target !== input) {
           list.innerHTML = "";
@@ -238,8 +237,9 @@
       });
     }
 
-    map.on('load', () => {
-      loadAndRenderAllLayers().then(setupAutocomplete);
+    map.on('load', async () => {
+      await loadAndRenderAllLayers();
+      setupAutocomplete();
       setInterval(loadAndRenderAllLayers, 5 * 60 * 1000);
 
       map.on('click', function(e) {
