@@ -23,25 +23,51 @@
     }
     #sidebar h3 { margin-top: 0; }
 
-    #searchbar {
+    #search-container {
       position: absolute;
       top: 15px;
       left: 50%;
       transform: translateX(-50%);
       z-index: 2;
-      background: white;
-      border: 1px solid #ccc;
+      width: 400px;
+    }
+
+    #searchbar {
+      width: 100%;
       padding: 8px 12px;
+      border: 1px solid #ccc;
       border-radius: 4px;
       font-size: 14px;
-      width: 400px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    #autocomplete-list {
+      position: absolute;
+      background-color: white;
+      border: 1px solid #ccc;
+      border-top: none;
+      z-index: 2;
+      max-height: 200px;
+      overflow-y: auto;
+      width: 100%;
+    }
+
+    .autocomplete-item {
+      padding: 8px;
+      cursor: pointer;
+    }
+
+    .autocomplete-item:hover {
+      background-color: #f0f0f0;
     }
   </style>
 </head>
 <body>
   <div id="map"></div>
-  <input id="searchbar" placeholder="Search by address..." />
+  <div id="search-container">
+    <input id="searchbar" placeholder="Search by address..." autocomplete="off" />
+    <div id="autocomplete-list"></div>
+  </div>
   <div id="sidebar">
     <h3>Parcel Info</h3>
     <p>Click a parcel or search above to see details.</p>
@@ -72,11 +98,7 @@
     let allParcels = [];
 
     function normalizeAddress(str) {
-      return str
-        ?.toUpperCase()
-        .replace(/[^\w\s]/gi, '')  // remove punctuation
-        .replace(/\s+/g, ' ')      // normalize spaces
-        .trim();
+      return str?.toUpperCase().replace(/[^\w\s]/gi, '').replace(/\s+/g, ' ').trim();
     }
 
     function fetchSurveyData() {
@@ -162,12 +184,10 @@
       }
     }
 
-    function handleSearch(addressQuery) {
-      const normalizedQuery = normalizeAddress(addressQuery);
-      const match = allParcels.find(feature =>
-        normalizeAddress(feature.properties.SitusFullAddress).includes(normalizedQuery)
+    function zoomToAddress(address) {
+      const match = allParcels.find(f =>
+        normalizeAddress(f.properties.SitusFullAddress) === normalizeAddress(address)
       );
-
       if (match) {
         const coordinates = match.geometry.type === "Polygon"
           ? match.geometry.coordinates[0][0]
@@ -175,18 +195,51 @@
 
         map.flyTo({ center: coordinates, zoom: 17 });
 
-        const address = match.properties.SitusFullAddress;
         const formEntry = surveyData.find(entry =>
           normalizeAddress(entry["What is the full address of the property?"]) === normalizeAddress(address)
         );
-        updateSidebar(formEntry, address);
-      } else {
-        alert("Address not found.");
+        updateSidebar(formEntry, match.properties.SitusFullAddress);
       }
     }
 
+    function setupAutocomplete() {
+      const input = document.getElementById("searchbar");
+      const list = document.getElementById("autocomplete-list");
+
+      input.addEventListener("input", function() {
+        const value = normalizeAddress(this.value);
+        list.innerHTML = "";
+
+        if (!value) return;
+
+        const matches = allParcels
+          .map(f => f.properties.SitusFullAddress)
+          .filter(addr => normalizeAddress(addr).includes(value))
+          .slice(0, 10); // limit suggestions
+
+        matches.forEach(addr => {
+          const item = document.createElement("div");
+          item.classList.add("autocomplete-item");
+          item.innerText = addr;
+          item.addEventListener("click", () => {
+            input.value = addr;
+            list.innerHTML = "";
+            zoomToAddress(addr);
+          });
+          list.appendChild(item);
+        });
+      });
+
+      // Close autocomplete on outside click
+      document.addEventListener("click", function(e) {
+        if (e.target !== input) {
+          list.innerHTML = "";
+        }
+      });
+    }
+
     map.on('load', () => {
-      loadAndRenderAllLayers();
+      loadAndRenderAllLayers().then(setupAutocomplete);
       setInterval(loadAndRenderAllLayers, 5 * 60 * 1000);
 
       map.on('click', function(e) {
@@ -203,12 +256,6 @@
           updateSidebar(match, address);
         }
       });
-    });
-
-    document.getElementById('searchbar').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        handleSearch(e.target.value);
-      }
     });
   </script>
 </body>
