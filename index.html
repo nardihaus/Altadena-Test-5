@@ -72,7 +72,11 @@
     let allParcels = [];
 
     function normalizeAddress(str) {
-      return str?.trim().toUpperCase();
+      return str
+        ?.toUpperCase()
+        .replace(/[^\w\s]/gi, '')  // remove punctuation
+        .replace(/\s+/g, ' ')      // normalize spaces
+        .trim();
     }
 
     function fetchSurveyData() {
