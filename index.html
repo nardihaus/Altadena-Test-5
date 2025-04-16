@@ -17,10 +17,11 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
   <script>
-    mapboxgl.accessToken = 'YOUR_MAPBOX_ACCESS_TOKEN';
+    // ✅ Your Mapbox Access Token
+    mapboxgl.accessToken = 'pk.eyJ1IjoibmFyZGloYXVzIiwiYSI6ImNtOG81NWtlOTA3aGcyanB3czdnaWRmYnYifQ.DL67dlH6jHPuohTQ5V6v3w';
 
     const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTKG1gNRrK_2VCnj87z2GmP5_kRLrsTaThJCk0JcmA1HpPqr7jUGDN1fW_XIgRYf3Cq6DxNVPaSBryo/pub?output=csv";
-    const geojsonUrl = 'your-geojson-url.json'; // Replace with your parcel GeoJSON file
+    const geojsonUrl = 'parcels.geojson'; // Make sure this file is uploaded to your repo root
 
     const map = new mapboxgl.Map({
       container: 'map',
@@ -64,64 +65,66 @@
       const parcelData = await fetch(geojsonUrl).then(res => res.json());
       const updatedData = tagParcelsWithSurveyData(parcelData, surveyData);
 
-      map.addSource('parcels', {
-        type: 'geojson',
-        data: updatedData
-      });
+      if (map.getSource('parcels')) {
+        map.getSource('parcels').setData(updatedData);
+      } else {
+        map.addSource('parcels', {
+          type: 'geojson',
+          data: updatedData
+        });
 
-      map.addLayer({
-        id: 'parcels-layer',
-        type: 'fill',
-        source: 'parcels',
-        paint: {
-          'fill-color': [
-            'case',
-            ['==', ['get', 'has_response'], 'yes'],
-            '#3bb2d0', // blue for completed
-            '#ccc'     // gray for empty
-          ],
-          'fill-opacity': 0.6,
-          'fill-outline-color': '#333'
-        }
-      });
+        map.addLayer({
+          id: 'parcels-layer',
+          type: 'fill',
+          source: 'parcels',
+          paint: {
+            'fill-color': [
+              'case',
+              ['==', ['get', 'has_response'], 'yes'],
+              '#3bb2d0', // color for completed
+              '#ccc'     // default
+            ],
+            'fill-opacity': 0.6,
+            'fill-outline-color': '#333'
+          }
+        });
 
-      map.on("mousemove", 'parcels-layer', function(e) {
-        const feature = e.features[0];
-        const address = feature.properties.address?.trim();
+        map.on("mousemove", 'parcels-layer', function(e) {
+          const feature = e.features[0];
+          const address = feature.properties.address?.trim();
 
-        const match = surveyData.find(entry =>
-          entry["What is the full address of the property?"]?.trim() === address
-        );
+          const match = surveyData.find(entry =>
+            entry["What is the full address of the property?"]?.trim() === address
+          );
 
-        if (match) {
-          const popupHTML = `
-            <div style="font-size: 14px; line-height: 1.4">
-              <strong>Style:</strong> ${match["Style"] || "N/A"}<br>
-              <strong>Total Sq Ft:</strong> ${match["Total Square Feet"] || "N/A"}<br>
-              <strong>Builder:</strong> ${match["Builder's Name"] || "N/A"} (${match["Builder's Email"] || "N/A"})<br>
-              <strong>Architect:</strong> ${match["Architect's / Designer's Name"] || "N/A"} (${match["Architect's Email"] || "N/A"})<br>
-              <strong>Engineer:</strong> ${match["Structural Engineer's Name"] || "N/A"} (${match["Structural Engineer's Email"] || "N/A"})<br>
-              <strong>Status:</strong> ${match["Project status (check all that apply)"] || "N/A"}
-            </div>
-          `;
+          if (match) {
+            const popupHTML = `
+              <div style="font-size: 14px; line-height: 1.4">
+                <strong>Style:</strong> ${match["Style"] || "N/A"}<br>
+                <strong>Total Sq Ft:</strong> ${match["Total Square Feet"] || "N/A"}<br>
+                <strong>Builder:</strong> ${match["Builder's Name"] || "N/A"} (${match["Builder's Email"] || "N/A"})<br>
+                <strong>Architect:</strong> ${match["Architect's / Designer's Name"] || "N/A"} (${match["Architect's Email"] || "N/A"})<br>
+                <strong>Engineer:</strong> ${match["Structural Engineer's Name"] || "N/A"} (${match["Structural Engineer's Email"] || "N/A"})<br>
+                <strong>Status:</strong> ${match["Project status (check all that apply)"] || "N/A"}
+              </div>
+            `;
 
-          new mapboxgl.Popup()
-            .setLngLat(e.lngLat)
-            .setHTML(popupHTML)
-            .addTo(map);
-        }
-      });
+            new mapboxgl.Popup()
+              .setLngLat(e.lngLat)
+              .setHTML(popupHTML)
+              .addTo(map);
+          }
+        });
 
-      map.on("mouseleave", 'parcels-layer', function () {
-        map.getCanvas().style.cursor = "";
-      });
+        map.on("mouseleave", 'parcels-layer', function () {
+          map.getCanvas().style.cursor = "";
+        });
+      }
     }
 
     map.on('load', () => {
       loadAndRenderMap();
-
-      // Optional: auto-refresh every 5 minutes
-      setInterval(loadAndRenderMap, 5 * 60 * 1000);
+      setInterval(loadAndRenderMap, 5 * 60 * 1000); // auto-refresh every 5 mins
     });
   </script>
 </body>
