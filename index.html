@@ -1,125 +1,128 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8" />
-    <title>Altadena Fire Recovery Map</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <style>
-        #map { height: 100vh; width: 100%; }
-    </style>
+  <meta charset="utf-8" />
+  <title>Altadena Parcel Survey Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+  <style>
+    body { margin: 0; padding: 0; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+  </style>
 </head>
 <body>
+  <div id="map"></div>
 
-<!-- Search UI fixed in upper right -->
-<div style="position: absolute; top: 10px; right: 10px; z-index: 999;">
-  <div style="background: white; padding: 10px; border-radius: 4px; text-align: left; width: 220px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-    <input
-      type="text"
-      id="addressInput"
-      placeholder="Enter address"
-      style="width: 100%; padding: 5px;"
-      oninput="autocompleteAddress()"
-      autocomplete="off"
-    />
-    <ul
-      id="suggestions"
-      style="list-style:none; margin:5px 0 0 0; padding:0; background:white; border:1px solid #ccc; max-height:150px; overflow-y:auto; z-index:1000; width:100%;"
-    ></ul>
-  </div>
-</div>
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
-<div id="map"></div>
+  <script>
+    mapboxgl.accessToken = 'YOUR_MAPBOX_ACCESS_TOKEN';
 
-<script>
-    const map = L.map('map').setView([34.1897, -118.1312], 16); // Centered on Altadena
+    const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTKG1gNRrK_2VCnj87z2GmP5_kRLrsTaThJCk0JcmA1HpPqr7jUGDN1fW_XIgRYf3Cq6DxNVPaSBryo/pub?output=csv";
+    const geojsonUrl = 'your-geojson-url.json'; // Replace with your parcel GeoJSON file
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
-
-    // GeoJSON file parts
-    const parcelFiles = [
-        'altadena_parcels_part_1.geojson',
-        'altadena_parcels_part_2.geojson',
-        'altadena_parcels_part_3.geojson',
-        'altadena_parcels_part_4.geojson'
-    ];
-
-    // Google Form base link and field IDs
-    const formBase = 'https://docs.google.com/forms/d/e/1FAIpQLSeXInd6e0-MX-u9EGnlbZ53Z_SQGLO_kIZxjc-5pR5ptbKX-g/viewform?usp=pp_url';
-
-    function createFormLink(p) {
-        return formBase +
-            '&entry.1929044199=' + encodeURIComponent(p.architect || '') +
-            '&entry.1378459837=' + encodeURIComponent(p.contractor || '') +
-            '&entry.1693961180=' + encodeURIComponent(p.SitusFullAddress || '') +
-            '&entry.1119155325=' + encodeURIComponent(p.parcel_id || '');
-    }
-
-    function onEachParcel(feature, layer) {
-        const p = feature.properties;
-        const formLink = createFormLink(p);
-
-        layer.on('click', () => {
-            window.open(formLink, '_blank');
-        });
-
-        layer.bindTooltip(p.address || 'Click to report info');
-    }
-
-    // Load each file
-    parcelFiles.forEach(file => {
-        fetch(file)
-            .then(res => res.json())
-            .then(data => {
-                L.geoJSON(data, {
-                    style: {
-                        color: '#3388ff',
-                        weight: 1,
-                        fillOpacity: 0.4
-                    },
-                    onEachFeature: onEachParcel
-                }).addTo(map);
-            });
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/light-v11',
+      center: [-118.137, 34.19],
+      zoom: 14
     });
 
-    // Autocomplete & search via Photon with location bias (Altadena)
-    function autocompleteAddress() {
-      const query = document.getElementById("addressInput").value;
-      const suggestionsBox = document.getElementById("suggestions");
+    let surveyData = [];
 
-      if (query.length < 3) {
-        suggestionsBox.innerHTML = '';
-        return;
-      }
-
-      fetch(`https://corsproxy.io/?https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&lat=34.1897&lon=-118.1312&limit=5`)
-        .then(res => res.json())
-        .then(data => {
-          suggestionsBox.innerHTML = '';
-          data.features.forEach(feature => {
-            const suggestion = document.createElement('li');
-            suggestion.textContent = feature.properties.label;
-            suggestion.style.padding = '5px';
-            suggestion.style.cursor = 'pointer';
-            suggestion.onclick = () => {
-              document.getElementById("addressInput").value = feature.properties.label;
-              suggestionsBox.innerHTML = '';
-              flyToLocation(feature.geometry.coordinates[1], feature.geometry.coordinates[0]);
-            };
-            suggestionsBox.appendChild(suggestion);
-          });
+    function fetchSurveyData() {
+      return fetch(csvUrl)
+        .then(response => response.text())
+        .then(text => {
+          const parsed = Papa.parse(text, { header: true });
+          surveyData = parsed.data;
         });
     }
 
-    function flyToLocation(lat, lon) {
-      map.setView([lat, lon], 17);
-      L.marker([lat, lon]).addTo(map)
-        .bindPopup("Selected Location").openPopup();
+    function tagParcelsWithSurveyData(parcelGeoJSON, surveyData) {
+      return {
+        ...parcelGeoJSON,
+        features: parcelGeoJSON.features.map(feature => {
+          const parcelAddress = feature.properties.address?.trim();
+          const hasMatch = surveyData.some(entry =>
+            entry["What is the full address of the property?"]?.trim() === parcelAddress
+          );
+          return {
+            ...feature,
+            properties: {
+              ...feature.properties,
+              has_response: hasMatch ? "yes" : "no"
+            }
+          };
+        })
+      };
     }
-</script>
 
+    async function loadAndRenderMap() {
+      await fetchSurveyData();
+      const parcelData = await fetch(geojsonUrl).then(res => res.json());
+      const updatedData = tagParcelsWithSurveyData(parcelData, surveyData);
+
+      map.addSource('parcels', {
+        type: 'geojson',
+        data: updatedData
+      });
+
+      map.addLayer({
+        id: 'parcels-layer',
+        type: 'fill',
+        source: 'parcels',
+        paint: {
+          'fill-color': [
+            'case',
+            ['==', ['get', 'has_response'], 'yes'],
+            '#3bb2d0', // blue for completed
+            '#ccc'     // gray for empty
+          ],
+          'fill-opacity': 0.6,
+          'fill-outline-color': '#333'
+        }
+      });
+
+      map.on("mousemove", 'parcels-layer', function(e) {
+        const feature = e.features[0];
+        const address = feature.properties.address?.trim();
+
+        const match = surveyData.find(entry =>
+          entry["What is the full address of the property?"]?.trim() === address
+        );
+
+        if (match) {
+          const popupHTML = `
+            <div style="font-size: 14px; line-height: 1.4">
+              <strong>Style:</strong> ${match["Style"] || "N/A"}<br>
+              <strong>Total Sq Ft:</strong> ${match["Total Square Feet"] || "N/A"}<br>
+              <strong>Builder:</strong> ${match["Builder's Name"] || "N/A"} (${match["Builder's Email"] || "N/A"})<br>
+              <strong>Architect:</strong> ${match["Architect's / Designer's Name"] || "N/A"} (${match["Architect's Email"] || "N/A"})<br>
+              <strong>Engineer:</strong> ${match["Structural Engineer's Name"] || "N/A"} (${match["Structural Engineer's Email"] || "N/A"})<br>
+              <strong>Status:</strong> ${match["Project status (check all that apply)"] || "N/A"}
+            </div>
+          `;
+
+          new mapboxgl.Popup()
+            .setLngLat(e.lngLat)
+            .setHTML(popupHTML)
+            .addTo(map);
+        }
+      });
+
+      map.on("mouseleave", 'parcels-layer', function () {
+        map.getCanvas().style.cursor = "";
+      });
+    }
+
+    map.on('load', () => {
+      loadAndRenderMap();
+
+      // Optional: auto-refresh every 5 minutes
+      setInterval(loadAndRenderMap, 5 * 60 * 1000);
+    });
+  </script>
 </body>
 </html>
