@@ -6,12 +6,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <style>
-    body { margin: 0; padding: 0; }
-    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+    body { margin: 0; padding: 0; font-family: sans-serif; display: flex; }
+    #map { position: absolute; top: 0; bottom: 0; left: 0; right: 300px; }
+    #sidebar {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 300px;
+      background: #f7f7f7;
+      border-left: 1px solid #ddd;
+      padding: 15px;
+      overflow-y: auto;
+      font-size: 14px;
+    }
+    #sidebar h3 {
+      margin-top: 0;
+    }
   </style>
 </head>
 <body>
   <div id="map"></div>
+  <div id="sidebar">
+    <h3>Parcel Info</h3>
+    <p>Click a parcel to see its details and open the form.</p>
+  </div>
 
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
@@ -65,7 +84,29 @@
       };
     }
 
-    function addLayerWithHover(id, data) {
+    function updateSidebar(entry, address) {
+      const sidebar = document.getElementById('sidebar');
+      if (!entry) {
+        sidebar.innerHTML = `<h3>Parcel Info</h3><p>No survey data for ${address}</p>`;
+        return;
+      }
+
+      const encodedAddress = encodeURIComponent(address);
+      const formUrl = `https://docs.google.com/forms/d/e/1FAIpQLSeXInd6e0-MX-u9EGnlbZ53Z_SQGLO_kIZxjc-5pR5ptbKX-g/viewform?entry.1693961180=${encodedAddress}`;
+
+      sidebar.innerHTML = `
+        <h3>${address}</h3>
+        <p><strong>Style:</strong> ${entry["Style"] || "N/A"}</p>
+        <p><strong>Total Sq Ft:</strong> ${entry["Total Square Feet"] || "N/A"}</p>
+        <p><strong>Builder:</strong> ${entry["Builder's Name"] || "N/A"}<br><small>${entry["Builder's Email"] || ""}</small></p>
+        <p><strong>Architect:</strong> ${entry["Architect's / Designer's Name"] || "N/A"}<br><small>${entry["Architect's Email"] || ""}</small></p>
+        <p><strong>Engineer:</strong> ${entry["Structural Engineer's Name"] || "N/A"}<br><small>${entry["Structural Engineer's Email"] || ""}</small></p>
+        <p><strong>Status:</strong> ${entry["Project status (check all that apply)"] || "N/A"}</p>
+        <p><a href="${formUrl}" target="_blank">📝 Fill or Edit This Parcel’s Form</a></p>
+      `;
+    }
+
+    function addLayerWithSidebar(id, data) {
       if (map.getSource(id)) {
         map.getSource(id).setData(data);
         return;
@@ -92,44 +133,22 @@
         }
       });
 
-      // Hover popup
-      map.on("mousemove", `${id}-layer`, function(e) {
-        const feature = e.features[0];
-        const address = feature.properties.address?.trim();
-
-        const match = surveyData.find(entry =>
-          entry["What is the full address of the property?"]?.trim() === address
-        );
-
-        if (match) {
-          const popupHTML = `
-            <div style="font-size: 14px; line-height: 1.4">
-              <strong>Style:</strong> ${match["Style"] || "N/A"}<br>
-              <strong>Total Sq Ft:</strong> ${match["Total Square Feet"] || "N/A"}<br>
-              <strong>Builder:</strong> ${match["Builder's Name"] || "N/A"} (${match["Builder's Email"] || "N/A"})<br>
-              <strong>Architect:</strong> ${match["Architect's / Designer's Name"] || "N/A"} (${match["Architect's Email"] || "N/A"})<br>
-              <strong>Engineer:</strong> ${match["Structural Engineer's Name"] || "N/A"} (${match["Structural Engineer's Email"] || "N/A"})<br>
-              <strong>Status:</strong> ${match["Project status (check all that apply)"] || "N/A"}
-            </div>
-          `;
-
-          new mapboxgl.Popup()
-            .setLngLat(e.lngLat)
-            .setHTML(popupHTML)
-            .addTo(map);
-        }
+      map.on("mouseenter", `${id}-layer`, () => {
+        map.getCanvas().style.cursor = "pointer";
       });
-
-      map.on("mouseleave", `${id}-layer`, function () {
+      map.on("mouseleave", `${id}-layer`, () => {
         map.getCanvas().style.cursor = "";
       });
 
-      // Click to open form
       map.on("click", `${id}-layer`, function(e) {
         const feature = e.features[0];
         const address = feature.properties.address?.trim();
 
         if (address) {
+          const match = surveyData.find(entry =>
+            entry["What is the full address of the property?"]?.trim() === address
+          );
+          updateSidebar(match, address);
           const encodedAddress = encodeURIComponent(address);
           const formUrl = `https://docs.google.com/forms/d/e/1FAIpQLSeXInd6e0-MX-u9EGnlbZ53Z_SQGLO_kIZxjc-5pR5ptbKX-g/viewform?entry.1693961180=${encodedAddress}`;
           window.open(formUrl, '_blank');
@@ -143,7 +162,7 @@
       for (const { id, file } of geojsonFiles) {
         const rawData = await fetch(file).then(res => res.json());
         const taggedData = tagGeojsonWithSurveyData(rawData);
-        addLayerWithHover(id, taggedData);
+        addLayerWithSidebar(id, taggedData);
       }
     }
 
