@@ -69,7 +69,7 @@
     });
 
     let surveyData = [];
-    let allParcels = []; // store all features for search
+    let allParcels = [];
 
     function normalizeAddress(str) {
       return str?.trim().toUpperCase();
@@ -113,7 +113,7 @@
         <p><strong>Architect:</strong> ${entry["Architect's / Designer's Name"] || "N/A"}<br><small>${entry["Architect's Email"] || ""}</small></p>
         <p><strong>Engineer:</strong> ${entry["Structural Engineer's Name"] || "N/A"}<br><small>${entry["Structural Engineer's Email"] || ""}</small></p>
         <p><strong>Status:</strong> ${entry["Project status (check all that apply)"] || "N/A"}</p>
-        <p><a href="${formUrl}" target="_blank">📝 Fill or Edit This Parcel’s Form</a></p>
+        <p><a href="${formUrl}" target="_blank">📝 Open Survey Form</a></p>
       `;
     }
 
@@ -192,10 +192,7 @@
           const match = surveyData.find(entry =>
             normalizeAddress(entry["What is the full address of the property?"]) === normalizeAddress(address)
           );
-          updateSidebar(match, address);
-          const encodedAddress = encodeURIComponent(address);
-          const formUrl = `https://docs.google.com/forms/d/e/1FAIpQLSeXInd6e0-MX-u9EGnlbZ53Z_SQGLO_kIZxjc-5pR5ptbKX-g/viewform?entry.1693961180=${encodedAddress}`;
-          window.open(formUrl, '_blank');
+          updateSidebar(match, address); // ✅ no form popup
         }
       });
     });
