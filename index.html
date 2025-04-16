@@ -84,14 +84,15 @@
           'fill-color': [
             'case',
             ['==', ['get', 'has_response'], 'yes'],
-            '#3bb2d0',  // with response
-            '#ccc'      // without response
+            '#3bb2d0',
+            '#ccc'
           ],
           'fill-opacity': 0.6,
           'fill-outline-color': '#444'
         }
       });
 
+      // Hover popup
       map.on("mousemove", `${id}-layer`, function(e) {
         const feature = e.features[0];
         const address = feature.properties.address?.trim();
@@ -122,6 +123,18 @@
       map.on("mouseleave", `${id}-layer`, function () {
         map.getCanvas().style.cursor = "";
       });
+
+      // Click to open form
+      map.on("click", `${id}-layer`, function(e) {
+        const feature = e.features[0];
+        const address = feature.properties.address?.trim();
+
+        if (address) {
+          const encodedAddress = encodeURIComponent(address);
+          const formUrl = `https://docs.google.com/forms/d/e/1FAIpQLSeXInd6e0-MX-u9EGnlbZ53Z_SQGLO_kIZxjc-5pR5ptbKX-g/viewform?entry.1693961180=${encodedAddress}`;
+          window.open(formUrl, '_blank');
+        }
+      });
     }
 
     async function loadAndRenderAllLayers() {
@@ -136,7 +149,7 @@
 
     map.on('load', () => {
       loadAndRenderAllLayers();
-      setInterval(loadAndRenderAllLayers, 5 * 60 * 1000); // refresh every 5 minutes
+      setInterval(loadAndRenderAllLayers, 5 * 60 * 1000); // Refresh every 5 minutes
     });
   </script>
 </body>
