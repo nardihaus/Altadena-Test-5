@@ -97,13 +97,17 @@
 
     function updateSidebar(entry, address) {
       const sidebar = document.getElementById('sidebar');
-      if (!entry) {
-        sidebar.innerHTML = `<h3>Parcel Info</h3><p>No survey data for ${address}</p>`;
-        return;
-      }
-
       const encodedAddress = encodeURIComponent(address);
       const formUrl = `https://docs.google.com/forms/d/e/1FAIpQLSeXInd6e0-MX-u9EGnlbZ53Z_SQGLO_kIZxjc-5pR5ptbKX-g/viewform?entry.1693961180=${encodedAddress}`;
+
+      if (!entry) {
+        sidebar.innerHTML = `
+          <h3>${address}</h3>
+          <p>No survey data found.</p>
+          <p><a href="${formUrl}" target="_blank">📝 Submit Survey</a></p>
+        `;
+        return;
+      }
 
       sidebar.innerHTML = `
         <h3>${address}</h3>
@@ -163,7 +167,7 @@
       if (match) {
         const coordinates = match.geometry.type === "Polygon"
           ? match.geometry.coordinates[0][0]
-          : match.geometry.coordinates[0][0][0]; // for MultiPolygon
+          : match.geometry.coordinates[0][0][0];
 
         map.flyTo({ center: coordinates, zoom: 17 });
 
@@ -192,7 +196,7 @@
           const match = surveyData.find(entry =>
             normalizeAddress(entry["What is the full address of the property?"]) === normalizeAddress(address)
           );
-          updateSidebar(match, address); // ✅ no form popup
+          updateSidebar(match, address);
         }
       });
     });
