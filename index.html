@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <style>
-    body { margin: 0; padding: 0; font-family: sans-serif; display: flex; }
-    #map { position: absolute; top: 0; bottom: 0; left: 0; right: 300px; }
+    body { margin: 0; padding: 0; font-family: sans-serif; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
     #sidebar {
       position: absolute;
       right: 0;
@@ -19,15 +19,32 @@
       padding: 15px;
       overflow-y: auto;
       font-size: 14px;
+      z-index: 1;
     }
     #sidebar h3 { margin-top: 0; }
+
+    #searchbar {
+      position: absolute;
+      top: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+      background: white;
+      border: 1px solid #ccc;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      width: 400px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
   </style>
 </head>
 <body>
   <div id="map"></div>
+  <input id="searchbar" placeholder="Search by address..." />
   <div id="sidebar">
     <h3>Parcel Info</h3>
-    <p>Click a parcel to see its details and access the form.</p>
+    <p>Click a parcel or search above to see details.</p>
   </div>
 
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
@@ -37,7 +54,6 @@
     mapboxgl.accessToken = 'pk.eyJ1IjoibmFyZGloYXVzIiwiYSI6ImNtOG81NWtlOTA3aGcyanB3czdnaWRmYnYifQ.DL67dlH6jHPuohTQ5V6v3w';
 
     const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTKG1gNRrK_2VCnj87z2GmP5_kRLrsTaThJCk0JcmA1HpPqr7jUGDN1fW_XIgRYf3Cq6DxNVPaSBryo/pub?output=csv";
-
     const geojsonFiles = [
       { id: 'parcels-1', file: 'altadena_parcels_part_1.geojson' },
       { id: 'parcels-2', file: 'altadena_parcels_part_2.geojson' },
@@ -53,6 +69,11 @@
     });
 
     let surveyData = [];
+    let allParcels = []; // store all features for search
+
+    function normalizeAddress(str) {
+      return str?.trim().toUpperCase();
+    }
 
     function fetchSurveyData() {
       return fetch(csvUrl)
@@ -64,17 +85,12 @@
       return {
         ...geojson,
         features: geojson.features.map(feature => {
-          const parcelAddress = feature.properties.SitusFullAddress?.trim();
+          const parcelAddress = normalizeAddress(feature.properties.SitusFullAddress);
           const hasMatch = surveyData.some(entry =>
-            entry["What is the full address of the property?"]?.trim() === parcelAddress
+            normalizeAddress(entry["What is the full address of the property?"]) === parcelAddress
           );
-          return {
-            ...feature,
-            properties: {
-              ...feature.properties,
-              has_response: hasMatch ? "yes" : "no"
-            }
-          };
+          feature.properties.has_response = hasMatch ? "yes" : "no";
+          return feature;
         })
       };
     }
@@ -102,12 +118,14 @@
     }
 
     function addLayer(id, data) {
+      allParcels.push(...data.features);
+
       if (map.getSource(id)) {
         map.getSource(id).setData(data);
         return;
       }
 
-      map.addSource(id, { type: 'geojson', data: data });
+      map.addSource(id, { type: 'geojson', data });
       map.addLayer({
         id: `${id}-layer`,
         type: 'fill',
@@ -127,11 +145,35 @@
 
     async function loadAndRenderAllLayers() {
       surveyData = await fetchSurveyData();
+      allParcels = [];
 
       for (const { id, file } of geojsonFiles) {
         const rawData = await fetch(file).then(res => res.json());
         const taggedData = tagGeojsonWithSurveyData(rawData);
         addLayer(id, taggedData);
+      }
+    }
+
+    function handleSearch(addressQuery) {
+      const normalizedQuery = normalizeAddress(addressQuery);
+      const match = allParcels.find(feature =>
+        normalizeAddress(feature.properties.SitusFullAddress).includes(normalizedQuery)
+      );
+
+      if (match) {
+        const coordinates = match.geometry.type === "Polygon"
+          ? match.geometry.coordinates[0][0]
+          : match.geometry.coordinates[0][0][0]; // for MultiPolygon
+
+        map.flyTo({ center: coordinates, zoom: 17 });
+
+        const address = match.properties.SitusFullAddress;
+        const formEntry = surveyData.find(entry =>
+          normalizeAddress(entry["What is the full address of the property?"]) === normalizeAddress(address)
+        );
+        updateSidebar(formEntry, address);
+      } else {
+        alert("Address not found.");
       }
     }
 
@@ -147,18 +189,21 @@
         if (features.length > 0) {
           const clicked = features[0];
           const address = clicked.properties.SitusFullAddress?.trim();
-
-          if (address) {
-            const match = surveyData.find(entry =>
-              entry["What is the full address of the property?"]?.trim() === address
-            );
-            updateSidebar(match, address);
-            const encodedAddress = encodeURIComponent(address);
-            const formUrl = `https://docs.google.com/forms/d/e/1FAIpQLSeXInd6e0-MX-u9EGnlbZ53Z_SQGLO_kIZxjc-5pR5ptbKX-g/viewform?entry.1693961180=${encodedAddress}`;
-            window.open(formUrl, '_blank');
-          }
+          const match = surveyData.find(entry =>
+            normalizeAddress(entry["What is the full address of the property?"]) === normalizeAddress(address)
+          );
+          updateSidebar(match, address);
+          const encodedAddress = encodeURIComponent(address);
+          const formUrl = `https://docs.google.com/forms/d/e/1FAIpQLSeXInd6e0-MX-u9EGnlbZ53Z_SQGLO_kIZxjc-5pR5ptbKX-g/viewform?entry.1693961180=${encodedAddress}`;
+          window.open(formUrl, '_blank');
         }
       });
+    });
+
+    document.getElementById('searchbar').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        handleSearch(e.target.value);
+      }
     });
   </script>
 </body>
