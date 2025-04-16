@@ -111,7 +111,7 @@
       return {
         ...geojson,
         features: geojson.features.map(feature => {
-          const parcelAddress = normalizeAddress(feature.properties.SitusFullAddress);
+          const parcelAddress = normalizeAddress(feature.properties?.SitusFullAddress);
           const hasMatch = surveyData.some(entry =>
             normalizeAddress(entry["What is the full address of the property?"]) === parcelAddress
           );
@@ -149,7 +149,6 @@
 
     function addLayer(id, data) {
       allParcels.push(...data.features);
-
       if (map.getSource(id)) {
         map.getSource(id).setData(data);
         return;
@@ -182,6 +181,8 @@
         const taggedData = tagGeojsonWithSurveyData(rawData);
         addLayer(id, taggedData);
       }
+
+      console.log("✅ Loaded all parcels:", allParcels.length);
     }
 
     function zoomToAddress(address) {
@@ -189,16 +190,17 @@
         normalizeAddress(f.properties?.SitusFullAddress) === normalizeAddress(address)
       );
       if (match) {
-        const coordinates = match.geometry.type === "Polygon"
+        const coords = match.geometry.type === "Polygon"
           ? match.geometry.coordinates[0][0]
           : match.geometry.coordinates[0][0][0];
-
-        map.flyTo({ center: coordinates, zoom: 17 });
+        map.flyTo({ center: coords, zoom: 17 });
 
         const formEntry = surveyData.find(entry =>
           normalizeAddress(entry["What is the full address of the property?"]) === normalizeAddress(address)
         );
         updateSidebar(formEntry, match.properties.SitusFullAddress);
+      } else {
+        console.log("❌ No parcel match for address:", address);
       }
     }
 
@@ -206,7 +208,9 @@
       const input = document.getElementById("searchbar");
       const list = document.getElementById("autocomplete-list");
 
-      input.addEventListener("input", function() {
+      console.log("🔍 Setting up autocomplete with", allParcels.length, "parcels");
+
+      input.addEventListener("input", function () {
         const value = normalizeAddress(this.value);
         list.innerHTML = "";
 
@@ -216,6 +220,10 @@
           .map(f => f.properties?.SitusFullAddress)
           .filter(addr => addr && normalizeAddress(addr).includes(value))
           .slice(0, 10);
+
+        if (matches.length === 0) {
+          console.log("ℹ️ No matches found for:", value);
+        }
 
         matches.forEach(addr => {
           const item = document.createElement("div");
@@ -230,7 +238,7 @@
         });
       });
 
-      document.addEventListener("click", function(e) {
+      document.addEventListener("click", function (e) {
         if (e.target !== input) {
           list.innerHTML = "";
         }
@@ -242,7 +250,7 @@
       setupAutocomplete();
       setInterval(loadAndRenderAllLayers, 5 * 60 * 1000);
 
-      map.on('click', function(e) {
+      map.on('click', function (e) {
         const features = map.queryRenderedFeatures(e.point, {
           layers: geojsonFiles.map(f => `${f.id}-layer`)
         });
