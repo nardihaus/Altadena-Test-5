@@ -186,7 +186,7 @@
 
     function zoomToAddress(address) {
       const match = allParcels.find(f =>
-        normalizeAddress(f.properties.SitusFullAddress) === normalizeAddress(address)
+        normalizeAddress(f.properties?.SitusFullAddress) === normalizeAddress(address)
       );
       if (match) {
         const coordinates = match.geometry.type === "Polygon"
@@ -213,8 +213,8 @@
         if (!value) return;
 
         const matches = allParcels
-          .map(f => f.properties.SitusFullAddress)
-          .filter(addr => normalizeAddress(addr).includes(value))
+          .map(f => f.properties?.SitusFullAddress)
+          .filter(addr => addr && normalizeAddress(addr).includes(value))
           .slice(0, 10);
 
         matches.forEach(addr => {
@@ -249,7 +249,7 @@
 
         if (features.length > 0) {
           const clicked = features[0];
-          const address = clicked.properties.SitusFullAddress?.trim();
+          const address = clicked.properties?.SitusFullAddress?.trim();
           const match = surveyData.find(entry =>
             normalizeAddress(entry["What is the full address of the property?"]) === normalizeAddress(address)
           );
