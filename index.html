@@ -20,16 +20,14 @@
       overflow-y: auto;
       font-size: 14px;
     }
-    #sidebar h3 {
-      margin-top: 0;
-    }
+    #sidebar h3 { margin-top: 0; }
   </style>
 </head>
 <body>
   <div id="map"></div>
   <div id="sidebar">
     <h3>Parcel Info</h3>
-    <p>Click a parcel to see its details and open the form.</p>
+    <p>Click a parcel to see its details and access the form.</p>
   </div>
 
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
@@ -59,10 +57,7 @@
     function fetchSurveyData() {
       return fetch(csvUrl)
         .then(response => response.text())
-        .then(text => {
-          const parsed = Papa.parse(text, { header: true });
-          surveyData = parsed.data;
-        });
+        .then(text => Papa.parse(text, { header: true }).data);
     }
 
     function tagGeojsonWithSurveyData(geojson) {
@@ -106,17 +101,13 @@
       `;
     }
 
-    function addLayerWithSidebar(id, data) {
+    function addLayer(id, data) {
       if (map.getSource(id)) {
         map.getSource(id).setData(data);
         return;
       }
 
-      map.addSource(id, {
-        type: 'geojson',
-        data: data
-      });
-
+      map.addSource(id, { type: 'geojson', data: data });
       map.addLayer({
         id: `${id}-layer`,
         type: 'fill',
@@ -132,43 +123,42 @@
           'fill-outline-color': '#444'
         }
       });
-
-      map.on("mouseenter", `${id}-layer`, () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", `${id}-layer`, () => {
-        map.getCanvas().style.cursor = "";
-      });
-
-      map.on("click", `${id}-layer`, function(e) {
-        const feature = e.features[0];
-        const address = feature.properties.address?.trim();
-
-        if (address) {
-          const match = surveyData.find(entry =>
-            entry["What is the full address of the property?"]?.trim() === address
-          );
-          updateSidebar(match, address);
-          const encodedAddress = encodeURIComponent(address);
-          const formUrl = `https://docs.google.com/forms/d/e/1FAIpQLSeXInd6e0-MX-u9EGnlbZ53Z_SQGLO_kIZxjc-5pR5ptbKX-g/viewform?entry.1693961180=${encodedAddress}`;
-          window.open(formUrl, '_blank');
-        }
-      });
     }
 
     async function loadAndRenderAllLayers() {
-      await fetchSurveyData();
+      surveyData = await fetchSurveyData();
 
       for (const { id, file } of geojsonFiles) {
         const rawData = await fetch(file).then(res => res.json());
         const taggedData = tagGeojsonWithSurveyData(rawData);
-        addLayerWithSidebar(id, taggedData);
+        addLayer(id, taggedData);
       }
     }
 
     map.on('load', () => {
       loadAndRenderAllLayers();
-      setInterval(loadAndRenderAllLayers, 5 * 60 * 1000); // Refresh every 5 minutes
+      setInterval(loadAndRenderAllLayers, 5 * 60 * 1000);
+
+      map.on('click', function(e) {
+        const features = map.queryRenderedFeatures(e.point, {
+          layers: geojsonFiles.map(f => `${f.id}-layer`)
+        });
+
+        if (features.length > 0) {
+          const clicked = features[0];
+          const address = clicked.properties.address?.trim();
+
+          if (address) {
+            const match = surveyData.find(entry =>
+              entry["What is the full address of the property?"]?.trim() === address
+            );
+            updateSidebar(match, address);
+            const encodedAddress = encodeURIComponent(address);
+            const formUrl = `https://docs.google.com/forms/d/e/1FAIpQLSeXInd6e0-MX-u9EGnlbZ53Z_SQGLO_kIZxjc-5pR5ptbKX-g/viewform?entry.1693961180=${encodedAddress}`;
+            window.open(formUrl, '_blank');
+          }
+        }
+      });
     });
   </script>
 </body>
