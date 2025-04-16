@@ -64,7 +64,7 @@
       return {
         ...geojson,
         features: geojson.features.map(feature => {
-          const parcelAddress = feature.properties.address?.trim();
+          const parcelAddress = feature.properties.SitusFullAddress?.trim();
           const hasMatch = surveyData.some(entry =>
             entry["What is the full address of the property?"]?.trim() === parcelAddress
           );
@@ -146,7 +146,7 @@
 
         if (features.length > 0) {
           const clicked = features[0];
-          const address = clicked.properties.address?.trim();
+          const address = clicked.properties.SitusFullAddress?.trim();
 
           if (address) {
             const match = surveyData.find(entry =>
